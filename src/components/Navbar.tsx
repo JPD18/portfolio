@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { Menu, X } from 'lucide-react'
 
@@ -13,7 +13,6 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [active, setActive] = useState('home')
-  const indicatorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8)

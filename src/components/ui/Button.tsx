@@ -1,4 +1,4 @@
-import { ButtonHTMLAttributes, forwardRef, isValidElement, cloneElement } from 'react'
+import { type ButtonHTMLAttributes, forwardRef, isValidElement, cloneElement } from 'react'
 import clsx from 'clsx'
 
 type Variant = 'primary' | 'ghost' | 'subtle'
