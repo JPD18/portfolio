@@ -3,7 +3,8 @@ import baldwinImg from '../assets/project/baldwin.png'
 import mandryImg from '../assets/project/mandry.png'
 import wefitImg from '../assets/project/WeFit Prototyping Board - Brave 13_08_2025 13_10_42.png'
 import pollImg from '../assets/project/PollWherever - Profile 1 - Microsoft​ Edge 13_08_2025 14_22_41.png'
-import { ChevronLeft, ChevronRight, Github, Link as LinkIcon } from 'lucide-react'
+import whisperGameVideo from '../assets/project/Trailer - Whisper Game-1.mp4'
+import { ChevronLeft, ChevronRight, Github, Link as LinkIcon, Play } from 'lucide-react'
 
 type Project = {
   title: string
@@ -12,6 +13,7 @@ type Project = {
   href?: string
   repo?: string
   image?: string
+  video?: string
 }
 
 const projects: Project[] = [
@@ -20,10 +22,11 @@ const projects: Project[] = [
     description: 'LLM-based puzzle-solving web game',
     tech: ['React', 'Django','Supabase', 'LangGraph','Midjourney','Higgsfield'],
     href: 'https://infinitewhispers.onrender.com/',
+    video: whisperGameVideo,
   },
   {
     title: 'Baldwin',
-    description: 'GraphRag ChatbotPoC for student services',
+    description: 'GraphRag Chatbot PoC for student services',
     tech: ['Python', 'Neo4j', 'LangChain', 'Knowledge Graphs'],
     image: baldwinImg,
   },
@@ -49,7 +52,48 @@ const projects: Project[] = [
   },
 ]
 
+// Video player component with lazy loading
+function VideoPlayer({ src, title }: { src: string; title: string }) {
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showControls, setShowControls] = useState(false)
 
+  const handlePlay = () => {
+    setIsPlaying(true)
+    setShowControls(true)
+  }
+
+  return (
+    <div className="absolute inset-0 z-0 flex items-center justify-center">
+      {!isPlaying ? (
+        // Video thumbnail with play button (before playing)
+        <div className="relative h-full w-full flex items-center justify-center bg-black/80">
+          <button
+            onClick={handlePlay}
+            className="group flex h-20 w-20 items-center justify-center rounded-full border-2 border-white/30 bg-black/50 backdrop-blur transition-all duration-300 hover:scale-110 hover:border-white/50 hover:bg-black/60 hover:shadow-[0_0_32px_rgba(124,58,237,0.5)] active:scale-95"
+            aria-label={`Play ${title} video`}
+          >
+            <Play className="ml-1 h-8 w-8 text-white/90 transition-colors group-hover:text-white" fill="currentColor" />
+          </button>
+          <div className="absolute bottom-4 right-4 rounded-md bg-black/60 px-2 py-1 text-xs text-white/75 backdrop-blur">
+            Click to play video
+          </div>
+        </div>
+      ) : (
+        // Actual video player (after clicking play)
+        <video
+          src={src}
+          controls={showControls}
+          autoPlay
+          className="h-full w-full object-contain"
+          onLoadStart={() => setShowControls(true)}
+          aria-label={`${title} video`}
+        >
+          Your browser does not support video playback.
+        </video>
+      )}
+    </div>
+  )
+}
 
 export default function ProjectsCarousel() {
   const [index, setIndex] = useState(0)
@@ -91,7 +135,12 @@ export default function ProjectsCarousel() {
             }}
             className="group/card relative aspect-[16/9] w-full rounded-2xl border border-white/10 bg-[linear-gradient(180deg,rgba(21,26,55,0.7),rgba(11,16,38,0.9))] p-6 transition duration-200 hover:border-white/20 hover:brightness-110 hover:shadow-[inset_0_0_40px_rgba(124,58,237,0.15),0_0_0_1px_rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-cosmic-purple/40"
           >
-            {projects[index].image && (
+            {projects[index].video ? (
+              <>
+                <VideoPlayer src={projects[index].video!} title={projects[index].title} />
+                <div className="absolute inset-0 z-0 bg-black/30" aria-hidden="true" />
+              </>
+            ) : projects[index].image ? (
               <>
                 <div className="absolute inset-0 z-0 flex items-center justify-center">
                   {/* eslint-disable-next-line jsx-a11y/alt-text */}
@@ -103,7 +152,7 @@ export default function ProjectsCarousel() {
                 </div>
                 <div className="absolute inset-0 z-0 bg-black/30" aria-hidden="true" />
               </>
-            )}
+            ) : null}
 
             {/* Overlay info panel */}
             <div className="absolute bottom-4 left-4 z-10 md:bottom-6 md:left-6">
@@ -157,16 +206,44 @@ export default function ProjectsCarousel() {
                 : 'border-white/10 hover:border-white/30 hover:ring-1 hover:ring-cosmic-purple/40'
             }`}
           >
-            {/* eslint-disable-next-line jsx-a11y/alt-text */}
-            <img
-              src={p.image }
-              className="h-full w-full object-cover opacity-80 transition group-hover/card:opacity-90"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-black/30" />
-            <span className="absolute bottom-1 left-1 right-1 truncate text-left text-[11px] text-white/90">
-              {p.title}
-            </span>
+            {p.video ? (
+              <>
+                <video
+                  src={p.video}
+                  className="h-full w-full object-cover opacity-80 transition group-hover/card:opacity-90"
+                  muted
+                  preload="metadata"
+                />
+                <div className="absolute inset-0 bg-black/30" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Play className="h-4 w-4 text-white/80" fill="currentColor" />
+                </div>
+                <span className="absolute bottom-1 left-1 right-1 truncate text-left text-[11px] text-white/90">
+                  {p.title}
+                </span>
+              </>
+            ) : p.image ? (
+              <>
+                {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                <img
+                  src={p.image}
+                  className="h-full w-full object-cover opacity-80 transition group-hover/card:opacity-90"
+                  loading="lazy"
+                />
+                <div className="absolute inset-0 bg-black/30" />
+                <span className="absolute bottom-1 left-1 right-1 truncate text-left text-[11px] text-white/90">
+                  {p.title}
+                </span>
+              </>
+            ) : (
+              <>
+                <div className="h-full w-full bg-gradient-to-br from-cosmic-purple/20 to-cosmic-blue/20 opacity-80" />
+                <div className="absolute inset-0 bg-black/30" />
+                <span className="absolute bottom-1 left-1 right-1 truncate text-left text-[11px] text-white/90">
+                  {p.title}
+                </span>
+              </>
+            )}
           </button>
         ))}
       </div>

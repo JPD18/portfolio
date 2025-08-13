@@ -19,12 +19,11 @@ export default function About() {
             <h2 className="text-2xl font-semibold">About me</h2>
             <p className="mt-3 text-white/70">
               <Balancer>
-                I’m John, a frontend-leaning full‑stack engineer who enjoys pushing pixels and performance in equal
-                measure. I build with React, TypeScript, Tailwind, and a sprinkle of motion.
+                I’m John, a recent graduate from Kings College London Bsc Computer Science, looking to further my skills in the fields of software development and AI. I build with React, Django, Ollama, Hugging Face, and innovate with Generative AI to create better solutions.
               </Balancer>
             </p>
             <ul className="mt-6 grid grid-cols-2 gap-2 text-sm text-white/70 sm:grid-cols-3">
-              {['React', 'TypeScript', 'Node', 'Vite', 'Tailwind', 'Framer Motion'].map((skill) => (
+              {['React', 'TypeScript', 'Node', 'Tailwind', 'Python', 'Django', 'Ollama', 'Hugging Face', 'Generative AI/Media', 'LangGraph','Supabase','Vercel', 'Smart-Contracts','Reinforcement Learning','Evolutionary Algorithms','Agentic AI/ElisaOS' ].map((skill) => (
                 <li key={skill} className="rounded-md border border-white/10 bg-white/5 px-3 py-1 backdrop-blur">
                   {skill}
                 </li>
