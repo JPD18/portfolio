@@ -30,14 +30,14 @@ type RippleLayerProps = {
 export default function RippleLayer({
   zIndex = 20,
   mixBlendMode = 'screen',
-  opacity = 0.35,
+  opacity = 0.5,
   maxRipples = 8,
   color = { r: 1.0, g: 1.0, b: 1.0 },
   rippleAlpha = 0.25,
   speed = 600,
   frequency = 0.045,
   damping = 2.2,
-  maxRadius = 240,
+  maxRadius = 400,
 }: RippleLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 

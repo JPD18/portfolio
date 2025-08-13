@@ -1,5 +1,7 @@
 .shiny-text-container {
   position: relative;
+  display: inline-flex;
+  align-items: baseline;
 }
 
 /* Overlay layer that carries the moving highlight */

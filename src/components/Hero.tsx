@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Button } from './ui/Button'
 import KineticText from './ui/KineticText'
+import GradientText from './ui/GradientText'
 import Balancer from 'react-wrap-balancer'
 
 export default function Hero() {
@@ -18,20 +19,18 @@ export default function Hero() {
           <p className="mb-3 inline rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur">
             Available for work
           </p>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-            <KineticText
-              text="Cosmic Builder"
-              className="bg-gradient-to-r from-cosmic-orange to-cosmic-purple bg-clip-text text-transparent"
-              delay={1}
-            />{' '}
-            <KineticText text="of delightful web apps" 
-            shiny
-            delay={1.6} />
+          <h1 className="text-4xl font-bold leading-[2] tracking-tight sm:text-6xl">
+            <GradientText  colors={["#FB923C", "#7C3AED", "#FB923C", "#7C3AED"]}>
+              <KineticText
+                text="Product Engineer"
+                delay={1}
+              />
+            </GradientText>{' '}
           </h1>
+    
           <p className="mx-auto mt-4 max-w-2xl text-balance text-white/70">
             <Balancer>
-              I craft performant, accessible React experiences with motion and polish. Welcome to my
-              cosmic corner of the web.
+              Pushing the boundaries of technology to create meaningful experiences.
             </Balancer>
           </p>
           <div className="mt-8 flex items-center justify-center gap-3">

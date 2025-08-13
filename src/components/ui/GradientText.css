@@ -1,0 +1,43 @@
+
+.animated-gradient-text {
+    position: relative;
+    display: inline-block;
+    padding-bottom: 0.12em; /* breathing room for g/j/y */
+    overflow: visible;
+}
+
+.gradient-text-fill {
+	background-clip: text;
+	-webkit-background-clip: text;
+	color: transparent;
+	-webkit-text-fill-color: transparent;
+	background-size: 200% 100%;
+	animation: gradient-slide linear infinite;
+    line-height: inherit;
+    display: inline-block;
+    overflow: visible;
+    /* Give the background extra room to paint below the baseline */
+    padding-bottom: 0.15em;
+    /* Keep boxes aligned to the text baseline */
+    vertical-align: baseline;
+}
+
+.animated-gradient-text .gradient-overlay {
+	position: absolute;
+	inset: -2px; /* optional subtle border glow */
+	border-radius: 0.25rem;
+	filter: blur(8px);
+	opacity: 0.25;
+	pointer-events: none;
+}
+
+@keyframes gradient-slide {
+	0% {
+		background-position: 0% 50%;
+	}
+	100% {
+		background-position: 200% 50%;
+	}
+}
+
+

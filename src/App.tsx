@@ -1,7 +1,6 @@
 import './App.css'
 import { lazy, Suspense, useEffect, useState } from 'react'
 const BackgroundFX = lazy(() => import('./components/BackgroundFX'))
-import CursorFX from './components/CursorFX'
 import RippleLayer from './components/RippleLayer'
 import Navbar from './components/Navbar'
 import Hero from './components/Hero'
@@ -24,9 +23,7 @@ export default function App() {
     <div className="relative min-h-dvh">
       <Suspense fallback={null}>{canShowBg && <BackgroundFX />}</Suspense>
       {/* Subtle translucent cursor ripples between BG and content */}
-      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.28} maxRipples={10} speed={520} frequency={0.05} damping={2.4} maxRadius={220} />
-      {/* Keep the existing dot/pulse for precision focus; remove if undesired */}
-      <CursorFX />
+      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.5} maxRipples={10} speed={520} frequency={0.05} damping={2.4} maxRadius={400} />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4">
         <Hero />
