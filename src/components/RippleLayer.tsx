@@ -1,268 +1,261 @@
-import { useEffect, useRef } from 'react'
+import { Renderer, Program, Mesh, Color, Triangle } from "ogl";
+import { useEffect, useRef } from "react";
 
-type RippleLayerProps = {
-  /** CSS z-index; place between background and content by default */
-  zIndex?: number
-  /** CSS mix-blend-mode for the canvas to blend with page */
-  mixBlendMode?: React.CSSProperties['mixBlendMode']
-  /** Overall canvas opacity */
-  opacity?: number
-  /** Maximum simultaneous ripples tracked */
-  maxRipples?: number
-  /** Base ripple color (alpha is controlled separately) */
-  color?: { r: number; g: number; b: number }
-  /** Peak alpha for a single ripple (0..1) */
-  rippleAlpha?: number
-  /** How fast ripples expand (pixels per second) */
-  speed?: number
-  /** Spatial ripple frequency (larger -> more rings) */
-  frequency?: number
-  /** Temporal damping factor (larger -> faster fade) */
-  damping?: number
-  /** Limit effect radius in pixels; 0 = infinite falloff */
-  maxRadius?: number
+const vertexShader = `
+attribute vec2 uv;
+attribute vec2 position;
+
+varying vec2 vUv;
+
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position, 0, 1);
+}
+`;
+
+const fragmentShader = `
+precision highp float;
+
+uniform float uTime;
+uniform vec3 uResolution;
+uniform vec2 uMouse;
+uniform float uSpeed;
+uniform float uIntensity;
+uniform float uRippleCount;
+uniform bool uMouseInteraction;
+uniform float uMouseActiveFactor;
+uniform float uFrequency;
+uniform float uDamping;
+uniform float uMaxRadius;
+
+varying vec2 vUv;
+
+float ripple(vec2 uv, vec2 center, float time, float frequency) {
+  float dist = length(uv - center);
+  if (uMaxRadius > 0.0 && dist > uMaxRadius * 0.01) return 0.0;
+  float wave = sin(dist * frequency - time * uSpeed * 0.01);
+  float falloff = 1.0 / (1.0 + dist * uDamping);
+  return wave * falloff;
 }
 
-/**
- * Fullscreen, pointer-events-none translucent ripples around the cursor.
- * Lightweight single-pass WebGL shader, no heavy fluid simulation.
- */
+void main() {
+  vec2 uv = (vUv * uResolution.xy) / min(uResolution.x, uResolution.y);
+  uv -= vec2(0.5 * uResolution.x / min(uResolution.x, uResolution.y), 0.5);
+  
+  float ripples = 0.0;
+  
+  // Static ripples
+  for (float i = 0.0; i < 10.0; i++) {
+    if (i >= uRippleCount) break;
+    vec2 center = vec2(
+      sin(uTime * 0.3 + i * 2.0) * 0.3,
+      cos(uTime * 0.4 + i * 1.5) * 0.3
+    );
+    ripples += ripple(uv, center, uTime, uFrequency * 10.0 + i * 0.5);
+  }
+  
+  // Mouse ripple with enhanced interaction
+  if (uMouseInteraction && uMouseActiveFactor > 0.0) {
+    vec2 mouseUV = (uMouse * uResolution.xy) / min(uResolution.x, uResolution.y);
+    mouseUV -= vec2(0.5 * uResolution.x / min(uResolution.x, uResolution.y), 0.5);
+    
+    // Create multiple mouse ripples at different frequencies for rich effect
+    float mouseRipple1 = ripple(uv, mouseUV, uTime, uFrequency * 12.0) * uMouseActiveFactor * 1.5;
+    float mouseRipple2 = ripple(uv, mouseUV, uTime * 1.3, uFrequency * 8.0) * uMouseActiveFactor * 1.0;
+    
+    ripples += mouseRipple1 + mouseRipple2 * 0.5;
+  }
+  
+  ripples *= uIntensity;
+  
+  // Cosmic color scheme - purple and blue only
+  float rippleIntensity = abs(ripples);
+  
+  // Create a cosmic gradient based on ripple intensity
+  vec3 purple = vec3(0.5, 0.2, 0.8);   // Deep purple
+  vec3 blue = vec3(0.2, 0.4, 1.0);     // Cosmic blue
+  vec3 lightBlue = vec3(0.4, 0.6, 1.0); // Lighter blue for variation
+  
+  // Mix between purple and blues based on ripple intensity and time
+  float colorPhase = sin(uTime * 0.5 + rippleIntensity * 3.0) * 0.5 + 0.5;
+  vec3 color1 = mix(purple, blue, colorPhase);
+  vec3 color2 = mix(blue, lightBlue, colorPhase);
+  vec3 finalColor = mix(color1, color2, rippleIntensity);
+  
+  float alpha = rippleIntensity * 0.8;
+  alpha = smoothstep(0.0, 1.0, alpha);
+  gl_FragColor = vec4(finalColor, alpha);
+}
+`;
+
+interface RippleLayerProps {
+  speed?: number;
+  intensity?: number;
+  rippleCount?: number;
+  mouseInteraction?: boolean;
+  className?: string;
+  zIndex?: number;
+  mixBlendMode?: string;
+  opacity?: number;
+  maxRipples?: number;
+  frequency?: number;
+  damping?: number;
+  maxRadius?: number;
+}
+
 export default function RippleLayer({
-  zIndex = 20,
-  mixBlendMode = 'screen',
-  opacity = 0.5,
-  maxRipples = 8,
-  color = { r: 1.0, g: 1.0, b: 1.0 },
-  rippleAlpha = 0.25,
-  speed = 600,
-  frequency = 0.045,
-  damping = 2.2,
-  maxRadius = 400,
+  speed = 1.0,
+  intensity = 0.5,
+  rippleCount = 3.0,
+  mouseInteraction = true,
+  className = "",
+  zIndex,
+  mixBlendMode,
+  opacity = 1.0,
+  maxRipples,
+  frequency,
+  damping,
+  maxRadius,
+  ...rest
 }: RippleLayerProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const ctnDom = useRef<HTMLDivElement>(null);
+  const targetMousePos = useRef({ x: 0.5, y: 0.5 });
+  const smoothMousePos = useRef({ x: 0.5, y: 0.5 });
+  const targetMouseActive = useRef(0.0);
+  const smoothMouseActive = useRef(0.0);
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+    if (!ctnDom.current) return;
+    const ctn = ctnDom.current;
+    
+    const renderer = new Renderer({
+      alpha: true,
+      premultipliedAlpha: false,
+    });
+    const gl = renderer.gl;
 
-    const gl = canvas.getContext('webgl')
-    if (!gl) return
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
 
-    // Setup GL state
-    gl.disable(gl.DEPTH_TEST)
-    gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    let program: Program;
 
-    // Fullscreen triangle (2D)
-    const vertices = new Float32Array([
-      -1, -1,
-      3, -1,
-      -1, 3,
-    ])
-    const vbo = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo)
-    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW)
-
-    const vertSrc = `
-      attribute vec2 aPos;
-      void main() {
-        gl_Position = vec4(aPos, 0.0, 1.0);
-      }
-    `
-
-    const fragSrc = `
-      precision highp float;
-
-      const int MAX_RIPPLES = ${Math.max(1, Math.min(16, maxRipples))};
-
-      uniform vec2 uResolution;
-      uniform float uTime;
-      uniform int uCount;
-      uniform vec2 uCenters[MAX_RIPPLES];
-      uniform float uStartTimes[MAX_RIPPLES];
-      uniform vec3 uColor;
-      uniform float uAlpha;
-      uniform float uSpeed;      // px/sec
-      uniform float uFreq;       // ring frequency
-      uniform float uDamping;    // fade factor
-      uniform float uMaxRadius;  // limit radius (<=0 => infinite)
-
-      // Return ripple intensity for a single event
-      float ripple(vec2 uv, vec2 center, float t0) {
-        float t = max(0.0, uTime - t0);
-        float r = length(uv - center);
-        float R = t * uSpeed; // current wavefront radius (pixels)
-
-        if (uMaxRadius > 0.0 && r > uMaxRadius + 40.0) return 0.0;
-
-        // Sinusoidal rings traveling outward around R
-        float k = uFreq;                 // spatial frequency
-        float phase = (r - R) * k;       // wave phase
-        float rings = 0.5 + 0.5 * sin(phase);
-
-        // Localized Gaussian envelope around the wavefront
-        float envelope = exp(-pow((r - R) / 38.0, 2.0));
-
-        // Temporal damping
-        float fade = exp(-uDamping * t);
-
-        // Slight inner falloff to avoid hard core
-        float inner = 1.0 - smoothstep(0.0, 28.0, r);
-
-        return rings * envelope * fade * inner;
-      }
-
-      void main() {
-        vec2 uv = gl_FragCoord.xy; // pixel space
-        float acc = 0.0;
-        for (int i = 0; i < MAX_RIPPLES; i++) {
-          if (i >= uCount) break;
-          acc += ripple(uv, uCenters[i], uStartTimes[i]);
-        }
-        float a = clamp(acc * uAlpha, 0.0, 1.0);
-        gl_FragColor = vec4(uColor, a);
-      }
-    `
-
-    const compile = (type: number, src: string) => {
-      const s = gl.createShader(type)!
-      gl.shaderSource(s, src)
-      gl.compileShader(s)
-      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
-        // eslint-disable-next-line no-console
-        console.error(gl.getShaderInfoLog(s))
-      }
-      return s
-    }
-    const vs = compile(gl.VERTEX_SHADER, vertSrc)
-    const fs = compile(gl.FRAGMENT_SHADER, fragSrc)
-    const prog = gl.createProgram()!
-    gl.attachShader(prog, vs)
-    gl.attachShader(prog, fs)
-    gl.linkProgram(prog)
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-      // eslint-disable-next-line no-console
-      console.error(gl.getProgramInfoLog(prog))
-    }
-    gl.useProgram(prog)
-
-    const aPos = gl.getAttribLocation(prog, 'aPos')
-    gl.enableVertexAttribArray(aPos)
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-
-    const uResolution = gl.getUniformLocation(prog, 'uResolution')
-    const uTime = gl.getUniformLocation(prog, 'uTime')
-    const uCount = gl.getUniformLocation(prog, 'uCount')
-    const uCenters = gl.getUniformLocation(prog, 'uCenters[0]')
-    const uStartTimes = gl.getUniformLocation(prog, 'uStartTimes[0]')
-    const uColor = gl.getUniformLocation(prog, 'uColor')
-    const uAlpha = gl.getUniformLocation(prog, 'uAlpha')
-    const uSpeed = gl.getUniformLocation(prog, 'uSpeed')
-    const uFreq = gl.getUniformLocation(prog, 'uFreq')
-    const uDamping = gl.getUniformLocation(prog, 'uDamping')
-    const uMaxRadius = gl.getUniformLocation(prog, 'uMaxRadius')
-
-    // Parameters
-    gl.uniform3f(uColor, color.r, color.g, color.b)
-    gl.uniform1f(uAlpha, rippleAlpha)
-    gl.uniform1f(uSpeed, speed)
-    gl.uniform1f(uFreq, frequency)
-    gl.uniform1f(uDamping, damping)
-    gl.uniform1f(uMaxRadius, maxRadius)
-
-    const rippleCenters = new Float32Array(maxRipples * 2)
-    const rippleStarts = new Float32Array(maxRipples)
-    let rippleCount = 0
-
-    const pushRipple = (x: number, y: number, t: number) => {
-      // Shift older ripples back to make room at index 0
-      if (rippleCount < maxRipples) {
-        rippleCount++
-      }
-      for (let i = rippleCount - 1; i > 0; i--) {
-        rippleCenters[i * 2] = rippleCenters[(i - 1) * 2]
-        rippleCenters[i * 2 + 1] = rippleCenters[(i - 1) * 2 + 1]
-        rippleStarts[i] = rippleStarts[i - 1]
-      }
-      rippleCenters[0] = x
-      rippleCenters[1] = y
-      rippleStarts[0] = t
-    }
-
-    const updateCanvasSize = () => {
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
-      const w = Math.floor(window.innerWidth * dpr)
-      const h = Math.floor(window.innerHeight * dpr)
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w
-        canvas.height = h
-        gl.viewport(0, 0, w, h)
-        gl.uniform2f(uResolution, w, h)
+    function resize() {
+      renderer.setSize(ctn.offsetWidth, ctn.offsetHeight);
+      if (program) {
+        program.uniforms.uResolution.value = new Color(
+          gl.canvas.width,
+          gl.canvas.height,
+          gl.canvas.width / gl.canvas.height
+        );
       }
     }
+    
+    window.addEventListener("resize", resize, false);
+    resize();
 
-    updateCanvasSize()
-    const onResize = () => updateCanvasSize()
-    window.addEventListener('resize', onResize)
+    const geometry = new Triangle(gl);
+    program = new Program(gl, {
+      vertex: vertexShader,
+      fragment: fragmentShader,
+      uniforms: {
+        uTime: { value: 0 },
+        uResolution: {
+          value: new Color(
+            gl.canvas.width,
+            gl.canvas.height,
+            gl.canvas.width / gl.canvas.height
+          ),
+        },
+        uMouse: {
+          value: new Float32Array([
+            smoothMousePos.current.x,
+            smoothMousePos.current.y,
+          ]),
+        },
+        uSpeed: { value: speed },
+        uIntensity: { value: intensity },
+        uRippleCount: { value: maxRipples || rippleCount },
+        uMouseInteraction: { value: mouseInteraction },
+        uMouseActiveFactor: { value: 0.0 },
+        uFrequency: { value: frequency || 0.05 },
+        uDamping: { value: damping || 2.0 },
+        uMaxRadius: { value: maxRadius || 0 },
+      },
+    });
 
-    let startMs = performance.now()
-    let raf = 0
-    const frame = (now: number) => {
-      const t = (now - startMs) / 1000
-      gl.clearColor(0, 0, 0, 0)
-      gl.clear(gl.COLOR_BUFFER_BIT)
-      gl.uniform1f(uTime, t)
-      gl.uniform1i(uCount, rippleCount)
-      gl.uniform2fv(uCenters, rippleCenters)
-      gl.uniform1fv(uStartTimes, rippleStarts)
-      gl.drawArrays(gl.TRIANGLES, 0, 3)
-      raf = requestAnimationFrame(frame)
+    const mesh = new Mesh(gl, { geometry, program });
+    let animateId: number;
+
+    function update(t: number) {
+      animateId = requestAnimationFrame(update);
+      program.uniforms.uTime.value = t * 0.001;
+
+      const lerpFactor = 0.05;
+      smoothMousePos.current.x +=
+        (targetMousePos.current.x - smoothMousePos.current.x) * lerpFactor;
+      smoothMousePos.current.y +=
+        (targetMousePos.current.y - smoothMousePos.current.y) * lerpFactor;
+
+      smoothMouseActive.current +=
+        (targetMouseActive.current - smoothMouseActive.current) * lerpFactor;
+
+      program.uniforms.uMouse.value[0] = smoothMousePos.current.x;
+      program.uniforms.uMouse.value[1] = smoothMousePos.current.y;
+      program.uniforms.uMouseActiveFactor.value = smoothMouseActive.current;
+
+      renderer.render({ scene: mesh });
     }
-    raf = requestAnimationFrame(frame)
+    
+    animateId = requestAnimationFrame(update);
+    ctn.appendChild(gl.canvas);
 
-    const handleMove = (clientX: number, clientY: number) => {
-      const rect = canvas.getBoundingClientRect()
-      const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1))
-      const x = (clientX - rect.left) * dpr
-      const y = (clientY - rect.top) * dpr
-      const t = (performance.now() - startMs) / 1000
-      pushRipple(x, canvas.height - y, t) // flip Y to GL coords
+    function handleMouseMove(e: MouseEvent) {
+      const rect = ctn.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width;
+      const y = 1.0 - (e.clientY - rect.top) / rect.height;
+      targetMousePos.current = { x, y };
+      targetMouseActive.current = 1.0;
     }
 
-    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY)
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY)
+    function handleMouseLeave() {
+      targetMouseActive.current = 0.0;
     }
 
-    window.addEventListener('mousemove', onMouseMove, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    if (mouseInteraction) {
+      // Listen on document for global mouse tracking
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseleave", handleMouseLeave);
+      ctn.addEventListener("mouseleave", handleMouseLeave);
+    }
 
     return () => {
-      cancelAnimationFrame(raf)
-      window.removeEventListener('resize', onResize)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('touchmove', onTouchMove)
-      gl.deleteBuffer(vbo)
-      gl.deleteShader(vs)
-      gl.deleteShader(fs)
-      gl.deleteProgram(prog)
-    }
-  }, [color.b, color.g, color.r, damping, frequency, maxRadius, maxRipples, rippleAlpha, speed])
+      cancelAnimationFrame(animateId);
+      window.removeEventListener("resize", resize);
+      if (mouseInteraction) {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseleave", handleMouseLeave);
+        ctn.removeEventListener("mouseleave", handleMouseLeave);
+      }
+      if (ctn.contains(gl.canvas)) {
+        ctn.removeChild(gl.canvas);
+      }
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
+    };
+  }, [speed, intensity, rippleCount, mouseInteraction, maxRipples, frequency, damping, maxRadius]);
+
+  const containerStyle: React.CSSProperties = {
+    zIndex,
+    mixBlendMode: mixBlendMode as any,
+    opacity,
+  };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex,
-        pointerEvents: 'none',
-        mixBlendMode,
-        opacity,
-      }}
-    >
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
-    </div>
-  )
+    <div 
+      ref={ctnDom} 
+      className={`fixed inset-0 w-full h-full pointer-events-none ${className}`}
+      style={containerStyle}
+      {...rest} 
+    />
+  );
 }
-
-

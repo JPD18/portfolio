@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion'
 import Balancer from 'react-wrap-balancer'
+import GradientText from './ui/GradientText'
 
 export default function About() {
   return (
@@ -16,8 +17,10 @@ export default function About() {
             <div className="aspect-square w-full rounded-xl bg-radial-glow ring-1 ring-white/10" />
           </div>
           <div className="md:col-span-3">
-            <h2 className="text-2xl font-semibold">About me</h2>
-            <p className="mt-3 text-white/70">
+            <h2 className="text-2xl font-semibold">
+              <GradientText>About me</GradientText>
+            </h2>
+            <p className="mt-3 text-white">
               <Balancer>
                 I’m John, a recent graduate from Kings College London Bsc Computer Science, looking to further my skills in the fields of software development and AI. I build with React, Django, Ollama, Hugging Face, and innovate with Generative AI to create better solutions.
               </Balancer>

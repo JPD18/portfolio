@@ -6,7 +6,7 @@ import Balancer from 'react-wrap-balancer'
 
 export default function Hero() {
   return (
-    <section id="home" className="relative isolate scroll-mt-24 pt-28 sm:pt-32">
+    <section id="home" className="relative isolate scroll-mt-24 pt-32 pb-16 sm:pt-40 sm:pb-20">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-conic-aurora opacity-50" />
       <div className="mx-auto max-w-6xl px-4">
         <motion.div
@@ -16,10 +16,10 @@ export default function Hero() {
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          <p className="mb-3 inline rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur">
+          <p className="mb-4 inline rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70 backdrop-blur">
             Available for work
           </p>
-          <h1 className="text-4xl font-bold leading-[2] tracking-tight sm:text-6xl">
+          <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-6xl sm:leading-tight">
             <GradientText  colors={["#FB923C", "#7C3AED", "#FB923C", "#7C3AED"]}>
               <KineticText
                 text="Product Engineer"
@@ -28,12 +28,12 @@ export default function Hero() {
             </GradientText>{' '}
           </h1>
     
-          <p className="mx-auto mt-4 max-w-2xl text-balance text-white/70">
+          <p className="mx-auto mt-6 max-w-2xl text-lg text-balance text-white/90 sm:text-xl">
             <Balancer>
               Pushing the boundaries of technology to create meaningful experiences.
             </Balancer>
           </p>
-          <div className="mt-8 flex items-center justify-center gap-3">
+          <div className="mt-10 flex items-center justify-center gap-4 sm:gap-6">
             <Button asChild>
               <a href="#projects">View Projects</a>
             </Button>

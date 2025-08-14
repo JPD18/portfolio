@@ -23,7 +23,7 @@ export default function App() {
     <div className="relative min-h-dvh">
       <Suspense fallback={null}>{canShowBg && <BackgroundFX />}</Suspense>
       {/* Subtle translucent cursor ripples between BG and content */}
-      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.5} maxRipples={10} speed={520} frequency={0.05} damping={2.4} maxRadius={400} />
+      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.05} maxRipples={3} speed={0.6} frequency={1} damping={0.8} intensity={1.5} />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4">
         <Hero />

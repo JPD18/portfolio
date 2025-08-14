@@ -35,6 +35,7 @@ function RotatingPlanet({ url, position, scale = 6, rotationSpeed = 0.08 }: Plan
 
   useFrame((_, delta) => {
     if (!ref.current) return
+    // Constant self-rotation regardless of scroll
     ref.current.rotation.y += rotationSpeed * delta
     ref.current.rotation.x += rotationSpeed * 0.35 * delta
   })
@@ -95,7 +96,8 @@ function OrbitingPlanets() {
   const baseAngleRef = useRef(0)
   const angularVelocityRef = useRef(0)
 
-  // Scroll drives orbital rotation with gentle inertia
+
+  // Scroll drives additional orbital rotation with gentle inertia
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       // Positive deltaY scrolls down; adjust sensitivity (radians per second impulse)
@@ -106,9 +108,15 @@ function OrbitingPlanets() {
   }, [])
 
   useFrame((_, delta) => {
-    // Integrate velocity and apply exponential damping
+    // Base slow orbital rotation (always happening)
+    const baseOrbitalSpeed = 0.05 // radians per second for slow continuous orbit
+    baseAngleRef.current += baseOrbitalSpeed * delta
+    
+    // Add scroll-driven velocity on top of base rotation
     baseAngleRef.current += angularVelocityRef.current * delta
     angularVelocityRef.current *= Math.exp(-2.5 * delta)
+    
+
 
     for (let i = 0; i < urls.length; i += 1) {
       const g = groupsRef.current[i]
@@ -125,7 +133,12 @@ function OrbitingPlanets() {
     <group>
       {urls.map((url, i) => (
         <group key={url} ref={(el) => (groupsRef.current[i] = el)}>
-          <RotatingPlanet url={url} position={[0, 0, 0]} scale={largeScales[i]} rotationSpeed={0.12} />
+          <RotatingPlanet 
+            url={url} 
+            position={[0, 0, 0]} 
+            scale={largeScales[i]} 
+            rotationSpeed={0.1}
+          />
         </group>
       ))}
     </group>
