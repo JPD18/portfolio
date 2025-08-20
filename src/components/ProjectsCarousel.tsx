@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import baldwinImg from '../assets/project/baldwin.png'
+import embeddingLabImg from '../assets/project/Embedding Lab - Profile 1 - Microsoft​ Edge 20_08_2025 14_31_51.png'
 import mandryImg from '../assets/project/mandry.png'
 import wefitImg from '../assets/project/WeFit Prototyping Board - Brave 13_08_2025 13_10_42.png'
 import pollImg from '../assets/project/PollWherever - Profile 1 - Microsoft​ Edge 13_08_2025 14_22_41.png'
@@ -23,6 +24,13 @@ const projects: Project[] = [
     tech: ['React', 'Django','Supabase', 'LangGraph','Midjourney','Higgsfield'],
     href: 'https://infinitewhispers.onrender.com/',
     video: whisperGameVideo,
+  },
+  {
+    title: 'Embedding Lab',
+    description: 'word2vec creation lab from data processing training, to visualisations and analysis',
+    tech: ['Python', 'Word2Vec','Pytorch','NLTK', 'PCA', 'Nearest Neighbours','NLP'],
+    image: embeddingLabImg,
+    repo: 'https://github.com/JPD18/Embedding_lab',
   },
   {
     title: 'Baldwin',
