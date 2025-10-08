@@ -26,7 +26,7 @@ export default function About() {
               </Balancer>
             </p>
             <ul className="mt-6 grid grid-cols-2 gap-2 text-sm text-white/70 sm:grid-cols-3">
-              {['React', 'TypeScript', 'Node', 'Tailwind', 'Python', 'Django', 'Ollama', 'Hugging Face', 'Generative AI/Media', 'LangGraph','Supabase','Vercel', 'Smart-Contracts','Reinforcement Learning','Evolutionary Algorithms','Agentic AI/ElisaOS' ].map((skill) => (
+              {['React', 'TypeScript', 'Node', 'Tailwind', 'Python', 'Django', 'Ollama', 'Hugging Face','Docker','Render','Midjourney','Higgsfield','Generative AI/Media', 'LangGraph','Supabase','Vercel', 'Smart-Contracts','Machine Leanring', 'Reinforcement Learning','Evolutionary Algorithms','Agentic AI/ElisaOS' ].map((skill) => (
                 <li key={skill} className="rounded-md border border-white/10 bg-white/5 px-3 py-1 backdrop-blur">
                   {skill}
                 </li>

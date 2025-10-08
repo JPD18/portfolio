@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import baldwinImg from '../assets/project/baldwin.png'
 import embeddingLabImg from '../assets/project/Embedding Lab - Profile 1 - Microsoft​ Edge 20_08_2025 14_31_51.png'
 import mandryImg from '../assets/project/mandry.png'
 import wefitImg from '../assets/project/WeFit Prototyping Board - Brave 13_08_2025 13_10_42.png'
 import pollImg from '../assets/project/PollWherever - Profile 1 - Microsoft​ Edge 13_08_2025 14_22_41.png'
-import whisperGameVideo from '../assets/project/Trailer - Whisper Game-1.mp4'
+import whisperGameVideo from '../assets/project/drafttrailer - Made with Clipchamp (3).mp4'
 import { ChevronLeft, ChevronRight, Github, Link as LinkIcon, Play } from 'lucide-react'
 
 type Project = {
@@ -22,7 +22,7 @@ const projects: Project[] = [
     title: 'Voxaga',
     description: 'LLM-based puzzle-solving web game',
     tech: ['React', 'Django','Supabase', 'LangGraph','Midjourney','Higgsfield'],
-    href: 'https://infinitewhispers.onrender.com/',
+    href: 'https://voxaga.onrender.com/',
     video: whisperGameVideo,
   },
   {
@@ -64,6 +64,62 @@ const projects: Project[] = [
 function VideoPlayer({ src, title }: { src: string; title: string }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [showControls, setShowControls] = useState(false)
+  const [poster, setPoster] = useState<string | null>(null)
+
+  useEffect(() => {
+    let isCancelled = false
+    const video = document.createElement('video')
+    video.src = src
+    video.preload = 'auto'
+    video.muted = true
+    video.playsInline = true
+    video.crossOrigin = 'anonymous'
+
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', handleLoaded)
+      video.removeEventListener('seeked', handleSeeked)
+      video.pause()
+      // Release resource
+      video.src = ''
+    }
+
+    const handleSeeked = () => {
+      try {
+        const width = video.videoWidth || 1280
+        const height = video.videoHeight || 720
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        ctx.drawImage(video, 0, 0, width, height)
+        const url = canvas.toDataURL('image/jpeg', 0.7)
+        if (!isCancelled) setPoster(url)
+      } finally {
+        cleanup()
+      }
+    }
+
+    const handleLoaded = () => {
+      try {
+        // Seek a tiny bit to ensure a decodable frame
+        video.currentTime = 0.1
+      } catch (_) {
+        // Fallback: if seeking fails, attempt capture immediately
+        handleSeeked()
+      }
+    }
+
+    video.addEventListener('loadedmetadata', handleLoaded, { once: true })
+    video.addEventListener('seeked', handleSeeked, { once: true })
+    // Start loading
+    video.load()
+
+    return () => {
+      isCancelled = true
+      cleanup()
+    }
+  }, [src])
 
   const handlePlay = () => {
     setIsPlaying(true)
@@ -75,6 +131,10 @@ function VideoPlayer({ src, title }: { src: string; title: string }) {
       {!isPlaying ? (
         // Video thumbnail with play button (before playing)
         <div className="relative h-full w-full flex items-center justify-center bg-black/80">
+          {poster && (
+            // eslint-disable-next-line jsx-a11y/alt-text
+            <img src={poster} className="absolute inset-0 h-full w-full object-contain opacity-95" aria-hidden="true" />
+          )}
           <button
             onClick={handlePlay}
             className="group flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/30 bg-black/50 backdrop-blur transition-all duration-300 hover:scale-110 hover:border-white/50 hover:bg-black/60 hover:shadow-[0_0_32px_rgba(124,58,237,0.5)] active:scale-95 relative z-20 sm:h-20 sm:w-20"

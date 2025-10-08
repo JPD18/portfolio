@@ -23,7 +23,7 @@ type PlanetProps = {
 function RotatingPlanet({ url, position, scale = 6, rotationSpeed = 0.08 }: PlanetProps) {
   const gl = useThree((state) => state.gl)
   const ktx2Loader = useMemo(() => {
-    const loader = new KTX2Loader().setTranscoderPath('/basis/')
+    const loader = new KTX2Loader().setTranscoderPath('https://unpkg.com/three@0.168.0/examples/jsm/libs/basis/')
     loader.detectSupport(gl)
     return loader
   }, [gl])

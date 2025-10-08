@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { Menu, X } from 'lucide-react'
+import GradientText from './ui/GradientText'
 
 const navItems = [
   { id: 'home', label: 'Home' },
@@ -46,7 +47,11 @@ export default function Navbar() {
     >
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <a href="#home" className="font-semibold tracking-wide text-white">
-          John<span className="text-cosmic-orange">.</span>O
+          <span className="text-cosmic-orange">
+            <GradientText  colors={["#FB923C", "#7C3AED", "#FB923C", "#7C3AED","#FB923C"]}>
+              Johnathan Dawber
+            </GradientText>
+            </span>
         </a>
         <button className="sm:hidden" onClick={() => setOpen((v) => !v)} aria-label="Toggle Menu">
           {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
