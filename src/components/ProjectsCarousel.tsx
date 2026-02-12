@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, ChevronRight, Github, ExternalLink, Play } from 'lucide-react'
+import clsx from 'clsx'
+
+// Assets
 import baldwinImg from '../assets/project/baldwin.png'
 import embeddingLabImg from '../assets/project/Embedding Lab - Profile 1 - Microsoft​ Edge 20_08_2025 14_31_51.png'
 import mandryImg from '../assets/project/mandry.png'
 import wefitImg from '../assets/project/WeFit Prototyping Board - Brave 13_08_2025 13_10_42.png'
 import pollImg from '../assets/project/PollWherever - Profile 1 - Microsoft​ Edge 13_08_2025 14_22_41.png'
 import whisperGameVideo from '../assets/project/drafttrailer - Made with Clipchamp (3).mp4'
-import { ChevronLeft, ChevronRight, Github, Link as LinkIcon, Play } from 'lucide-react'
 
 type Project = {
   title: string
@@ -21,14 +25,14 @@ const projects: Project[] = [
   {
     title: 'Voxaga',
     description: 'LLM-based puzzle-solving web game',
-    tech: ['React', 'Django','Supabase', 'LangGraph','Midjourney','Higgsfield'],
+    tech: ['React', 'Django', 'Supabase', 'LangGraph', 'Midjourney', 'Higgsfield'],
     href: 'https://voxaga.onrender.com/',
     video: whisperGameVideo,
   },
   {
     title: 'Embedding Lab',
     description: 'word2vec creation lab from data processing training, to visualisations and analysis',
-    tech: ['Python', 'Word2Vec','Pytorch','NLTK', 'PCA', 'Nearest Neighbours','NLP'],
+    tech: ['Python', 'Word2Vec', 'Pytorch', 'NLTK', 'PCA', 'Nearest Neighbours', 'NLP'],
     image: embeddingLabImg,
     repo: 'https://github.com/JPD18/Embedding_lab',
   },
@@ -41,14 +45,14 @@ const projects: Project[] = [
   {
     title: 'Mandry AI',
     description: 'Visa and Immigration AI Assistant',
-    tech: ['Next.js', 'LangGraph', 'Ollama','Anthropic'],
+    tech: ['Next.js', 'LangGraph', 'Ollama', 'Anthropic'],
     repo: 'https://github.com/JPD18/Mandry-ai',
     image: mandryImg,
   },
   {
     title: 'PollWherever',
     description: 'Interative quiz for Computer Science lectures',
-    tech: ['Django', 'WebSockets','RoBERTa'],
+    tech: ['Django', 'WebSockets', 'RoBERTa'],
     image: pollImg,
   },
   {
@@ -60,104 +64,40 @@ const projects: Project[] = [
   },
 ]
 
-// Video player component with lazy loading
+// Video player component
 function VideoPlayer({ src, title }: { src: string; title: string }) {
   const [isPlaying, setIsPlaying] = useState(false)
-  const [showControls, setShowControls] = useState(false)
-  const [poster, setPoster] = useState<string | null>(null)
-
-  useEffect(() => {
-    let isCancelled = false
-    const video = document.createElement('video')
-    video.src = src
-    video.preload = 'auto'
-    video.muted = true
-    video.playsInline = true
-    video.crossOrigin = 'anonymous'
-
-    const cleanup = () => {
-      video.removeEventListener('loadedmetadata', handleLoaded)
-      video.removeEventListener('seeked', handleSeeked)
-      video.pause()
-      // Release resource
-      video.src = ''
-    }
-
-    const handleSeeked = () => {
-      try {
-        const width = video.videoWidth || 1280
-        const height = video.videoHeight || 720
-        const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        ctx.drawImage(video, 0, 0, width, height)
-        const url = canvas.toDataURL('image/jpeg', 0.7)
-        if (!isCancelled) setPoster(url)
-      } finally {
-        cleanup()
-      }
-    }
-
-    const handleLoaded = () => {
-      try {
-        // Seek a tiny bit to ensure a decodable frame
-        video.currentTime = 0.1
-      } catch (_) {
-        // Fallback: if seeking fails, attempt capture immediately
-        handleSeeked()
-      }
-    }
-
-    video.addEventListener('loadedmetadata', handleLoaded, { once: true })
-    video.addEventListener('seeked', handleSeeked, { once: true })
-    // Start loading
-    video.load()
-
-    return () => {
-      isCancelled = true
-      cleanup()
-    }
-  }, [src])
-
-  const handlePlay = () => {
-    setIsPlaying(true)
-    setShowControls(true)
-  }
-
+  const videoRef = useRef<HTMLVideoElement>(null)
+  
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center">
+    <div className="relative h-full w-full bg-black/20 group">
       {!isPlaying ? (
-        // Video thumbnail with play button (before playing)
-        <div className="relative h-full w-full flex items-center justify-center bg-black/80">
-          {poster && (
-            // eslint-disable-next-line jsx-a11y/alt-text
-            <img src={poster} className="absolute inset-0 h-full w-full object-contain opacity-95" aria-hidden="true" />
-          )}
-          <button
-            onClick={handlePlay}
-            className="group flex h-16 w-16 items-center justify-center rounded-full border-2 border-white/30 bg-black/50 backdrop-blur transition-all duration-300 hover:scale-110 hover:border-white/50 hover:bg-black/60 hover:shadow-[0_0_32px_rgba(124,58,237,0.5)] active:scale-95 relative z-20 sm:h-20 sm:w-20"
-            aria-label={`Play ${title} video`}
-          >
-            <Play className="ml-0.5 h-6 w-6 text-white/90 transition-colors group-hover:text-white sm:ml-1 sm:h-8 sm:w-8" fill="currentColor" />
-          </button>
-          <div className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white/75 backdrop-blur z-10 sm:bottom-4 sm:right-4 sm:rounded-md sm:px-2 sm:py-1 sm:text-xs">
-            Click to play video
+        <>
+        <video 
+           ref={videoRef}
+           src={src} 
+           className="h-full w-full object-cover opacity-60 transition group-hover:opacity-80" 
+           muted 
+           playsInline
+           preload="metadata"
+        />
+        <button
+          onClick={() => setIsPlaying(true)}
+          className="absolute inset-0 z-10 flex items-center justify-center"
+          aria-label={`Play ${title} video`}
+        >
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 backdrop-blur ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-110 group-hover:bg-white/20">
+             <Play className="ml-1 h-6 w-6 text-white" fill="currentColor" />
           </div>
-        </div>
+        </button>
+        </>
       ) : (
-        // Actual video player (after clicking play)
         <video
           src={src}
-          controls={showControls}
+          controls
           autoPlay
-          className="h-full w-full object-contain relative z-10"
-          onLoadStart={() => setShowControls(true)}
-          aria-label={`${title} video`}
-        >
-          Your browser does not support video playback.
-        </video>
+          className="h-full w-full object-contain"
+        />
       )}
     </div>
   )
@@ -165,158 +105,177 @@ function VideoPlayer({ src, title }: { src: string; title: string }) {
 
 export default function ProjectsCarousel() {
   const [index, setIndex] = useState(0)
+  const [direction, setDirection] = useState(0)
 
-  const prev = () => setIndex((i) => (i - 1 + projects.length) % projects.length)
-  const next = () => setIndex((i) => (i + 1) % projects.length)
+  const paginate = (newDirection: number) => {
+    setDirection(newDirection)
+    setIndex((prev) => (prev + newDirection + projects.length) % projects.length)
+  }
+
+  const currentProject = projects[index]
+
+  const variants = {
+    enter: (direction: number) => ({
+      x: direction > 0 ? 50 : -50,
+      opacity: 0,
+      scale: 0.95
+    }),
+    center: {
+      zIndex: 1,
+      x: 0,
+      opacity: 1,
+      scale: 1
+    },
+    exit: (direction: number) => ({
+      zIndex: 0,
+      x: direction < 0 ? 50 : -50,
+      opacity: 0,
+      scale: 0.95
+    })
+  }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-3 backdrop-blur sm:rounded-3xl sm:p-4">
-      <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10 sm:rounded-3xl" />
-      <div className="pointer-events-none absolute -inset-40 -z-10 bg-conic-aurora opacity-60 blur-3xl" />
-
-      <div className="relative z-0 w-full isolate">
-        <div className="pointer-events-auto absolute left-1 top-1/2 z-10 -translate-y-1/2 sm:left-2">
-          <button
-            onClick={prev}
-            className="rounded-full border border-white/10 bg-black/50 p-1.5 text-white/80 backdrop-blur transition hover:text-white hover:border-white/30 hover:bg-black/60 hover:shadow-[0_0_24px_rgba(124,58,237,0.35)] active:scale-95 sm:p-2"
-            aria-label="Previous project"
-          >
-            <ChevronLeft className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-        </div>
-        <div className="pointer-events-auto absolute right-1 top-1/2 z-10 -translate-y-1/2 sm:right-2">
-          <button
-            onClick={next}
-            className="rounded-full border border-white/10 bg-black/50 p-1.5 text-white/80 backdrop-blur transition hover:text-white hover:border-white/30 hover:bg-black/60 hover:shadow-[0_0_24px_rgba(124,58,237,0.35)] active:scale-95 sm:p-2"
-            aria-label="Next project"
-          >
-            <ChevronRight className="h-4 w-4 sm:h-5 sm:w-5" />
-          </button>
-        </div>
-
-        <div className="overflow-hidden">
-          <div
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'ArrowLeft') prev()
-              if (e.key === 'ArrowRight') next()
-            }}
-            className="group/card relative aspect-[4/3] w-full rounded-xl border border-white/10 bg-[linear-gradient(180deg,rgba(21,26,55,0.7),rgba(11,16,38,0.9))] p-4 transition duration-200 hover:border-white/20 hover:brightness-110 hover:shadow-[inset_0_0_40px_rgba(124,58,237,0.15),0_0_0_1px_rgba(255,255,255,0.06)] focus:outline-none focus:ring-2 focus:ring-cosmic-purple/40 sm:aspect-[16/9] sm:rounded-2xl sm:p-6"
-          >
-            {projects[index].video ? (
-              <>
-                <VideoPlayer src={projects[index].video!} title={projects[index].title} />
-                <div className="absolute inset-0 z-0 bg-black/30 pointer-events-none" aria-hidden="true" />
-              </>
-            ) : projects[index].image ? (
-              <>
-                <div className="absolute inset-0 z-0 flex items-center justify-center">
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <img
-                    src={projects[index].image}
-                    className="max-h-full max-w-full object-contain"
-                    aria-hidden="true"
-                  />
-                </div>
-                <div className="absolute inset-0 z-0 bg-black/30" aria-hidden="true" />
-              </>
-            ) : null}
-
-            {/* Overlay info panel */}
-            <div className="absolute bottom-2 left-2 right-2 z-30 sm:bottom-4 sm:left-4 sm:right-auto md:bottom-6 md:left-6">
-              <div className="rounded-lg border border-white/10 bg-black/60 p-3 backdrop-blur sm:inline-block sm:w-fit sm:max-w-[90%] sm:rounded-xl sm:p-4 md:max-w-[70%]">
-                <h3 className="text-base font-semibold sm:text-lg md:text-xl">{projects[index].title}</h3>
-                <p className="mt-1 text-xs text-white/75 sm:text-xs md:text-sm">{projects[index].description}</p>
-                <ul className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-white/75 sm:gap-2 sm:text-[11px] md:text-xs">
-                  {projects[index].tech.map((t) => (
-                    <li key={t} className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 sm:rounded-md sm:px-2 sm:py-1">
-                      {t}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-2 flex gap-2 sm:mt-3">
-                  {projects[index].href && (
-                    <a
-                      href={projects[index].href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded border border-white/10 bg-black/40 px-2.5 py-1.5 text-xs text-white/85 backdrop-blur transition hover:text-white hover:border-white/30 hover:bg-black/60 sm:gap-2 sm:rounded-md sm:px-3 sm:py-2 md:text-sm"
-                    >
-                      <LinkIcon className="h-3 w-3 sm:h-4 sm:w-4" /> Live
-                    </a>
-                  )}
-                  {projects[index].repo && (
-                    <a
-                      href={projects[index].repo}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded border border-white/10 bg-black/40 px-2.5 py-1.5 text-xs text-white/85 backdrop-blur transition hover:text-white hover:border-white/30 hover:bg-black/60 sm:gap-2 sm:rounded-md sm:px-3 sm:py-2 md:text-sm"
-                    >
-                      <Github className="h-3 w-3 sm:h-4 sm:w-4" /> Repo
-                    </a>
-                  )}
-                </div>
-              </div>
+    <div className="relative w-full">
+      <div className="grid gap-8 lg:grid-cols-[1.6fr,1fr] lg:gap-12 lg:items-center">
+        {/* Visual Side */}
+        <div className="group relative aspect-video w-full overflow-hidden rounded-2xl border border-white/10 bg-black/30 shadow-2xl ring-1 ring-white/5 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none z-10 mix-blend-overlay" />
+            
+            <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+              <motion.div
+                key={index}
+                custom={direction}
+                variants={variants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{ x: { type: "spring", stiffness: 300, damping: 30 }, opacity: { duration: 0.2 } }}
+                className="absolute inset-0 h-full w-full"
+              >
+                {currentProject.video ? (
+                   <VideoPlayer src={currentProject.video} title={currentProject.title} />
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center bg-black/20 p-4">
+                     {currentProject.image && (
+                       <img 
+                         src={currentProject.image} 
+                         alt={currentProject.title}
+                         className="h-full w-full object-contain"
+                       />
+                     )}
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+            
+            {/* Navigation Buttons (Always Visible) */}
+            <div className="absolute inset-0 z-20 flex items-center justify-between p-4 pointer-events-none">
+               <button 
+                  onClick={(e) => { e.stopPropagation(); paginate(-1); }}
+                  className="pointer-events-auto p-3 rounded-full bg-black/50 text-white/90 hover:bg-purple-600 hover:text-white hover:scale-110 transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg"
+                  aria-label="Previous project"
+                >
+                  <ChevronLeft className="h-6 w-6" />
+               </button>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); paginate(1); }}
+                  className="pointer-events-auto p-3 rounded-full bg-black/50 text-white/90 hover:bg-purple-600 hover:text-white hover:scale-110 transition-all duration-300 backdrop-blur-md border border-white/10 shadow-lg"
+                  aria-label="Next project"
+                >
+                  <ChevronRight className="h-6 w-6" />
+               </button>
             </div>
-          </div>
         </div>
-      </div>
-      {/* Mini previews */}
-      <div className="mt-3 flex gap-2 overflow-x-auto pb-2 sm:mt-4 sm:gap-3">
-        {projects.map((p, i) => (
-          <button
-            key={p.title}
-            onClick={() => setIndex(i)}
-            aria-label={`Show ${p.title}`}
-            className={`relative h-16 w-24 flex-shrink-0 overflow-hidden rounded border transition sm:h-20 sm:w-32 sm:rounded-md ${
-              i === index
-                ? 'border-white/40 ring-2 ring-cosmic-purple/50'
-                : 'border-white/10 hover:border-white/30 hover:ring-1 hover:ring-cosmic-purple/40'
-            }`}
-          >
-            {p.video ? (
-              <>
-                <video
-                  src={p.video}
-                  className="h-full w-full object-cover opacity-80 transition group-hover/card:opacity-90"
-                  muted
-                  preload="metadata"
-                />
-                <div className="absolute inset-0 bg-black/30" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Play className="h-4 w-4 text-white/80" fill="currentColor" />
-                </div>
-                <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate text-left text-[10px] text-white/90 sm:bottom-1 sm:left-1 sm:right-1 sm:text-[11px]">
-                  {p.title}
-                </span>
-              </>
-            ) : p.image ? (
-              <>
-                {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                <img
-                  src={p.image}
-                  className="h-full w-full object-cover opacity-80 transition group-hover/card:opacity-90"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black/30" />
-                <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate text-left text-[10px] text-white/90 sm:bottom-1 sm:left-1 sm:right-1 sm:text-[11px]">
-                  {p.title}
-                </span>
-              </>
-            ) : (
-              <>
-                <div className="h-full w-full bg-gradient-to-br from-cosmic-purple/20 to-cosmic-blue/20 opacity-80" />
-                <div className="absolute inset-0 bg-black/30" />
-                <span className="absolute bottom-0.5 left-0.5 right-0.5 truncate text-left text-[10px] text-white/90 sm:bottom-1 sm:left-1 sm:right-1 sm:text-[11px]">
-                  {p.title}
-                </span>
-              </>
-            )}
-          </button>
-        ))}
+
+        {/* Details Side */}
+        <div className="flex flex-col justify-center">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <div>
+                <h3 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                  {currentProject.title}
+                </h3>
+                <div className="mt-4 h-1 w-20 rounded-full bg-gradient-to-r from-purple-500 to-orange-400 opacity-80" />
+              </div>
+              
+              <p className="text-lg leading-relaxed text-white/70">
+                {currentProject.description}
+              </p>
+              
+              <div className="flex flex-wrap gap-2">
+                {currentProject.tech.map(t => (
+                  <span key={t} className="inline-flex items-center rounded-md border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-white/60 transition hover:bg-white/10 hover:text-white/80">
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap gap-4 pt-2">
+                {currentProject.href && (
+                  <a
+                    href={currentProject.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black transition hover:bg-gray-200"
+                  >
+                    <ExternalLink className="h-4 w-4" /> Visit Live
+                  </a>
+                )}
+                {currentProject.repo && (
+                  <a
+                    href={currentProject.repo}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-transparent px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                  >
+                    <Github className="h-4 w-4" /> View Code
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+          
+          {/* Controls */}
+           <div className="mt-8 flex items-center gap-6">
+              <button
+                onClick={() => paginate(-1)}
+                className="group flex items-center gap-2 text-sm font-medium text-white/50 hover:text-white transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                PREV
+              </button>
+
+              <div className="flex gap-2">
+                {projects.map((_, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => setIndex(i)} 
+                    className={clsx(
+                      "h-1.5 rounded-full transition-all duration-300", 
+                      i === index ? "w-8 bg-purple-500" : "w-2 bg-white/20 hover:bg-white/40"
+                    )} 
+                    aria-label={`Go to project ${i + 1}`}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={() => paginate(1)}
+                className="group flex items-center gap-2 text-sm font-medium text-white/50 hover:text-white transition-colors"
+              >
+                NEXT
+                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </button>
+           </div>
+        </div>
       </div>
     </div>
   )
 }
-
-

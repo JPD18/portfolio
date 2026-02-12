@@ -21,101 +21,174 @@ uniform vec3 uResolution;
 uniform vec2 uMouse;
 uniform float uSpeed;
 uniform float uIntensity;
-uniform float uRippleCount;
 uniform bool uMouseInteraction;
 uniform float uMouseActiveFactor;
-uniform float uFrequency;
-uniform float uDamping;
-uniform float uMaxRadius;
 
 varying vec2 vUv;
 
-float ripple(vec2 uv, vec2 center, float time, float frequency) {
-  float dist = length(uv - center);
-  if (uMaxRadius > 0.0 && dist > uMaxRadius * 0.01) return 0.0;
-  float wave = sin(dist * frequency - time * uSpeed * 0.01);
-  float falloff = 1.0 / (1.0 + dist * uDamping);
-  return wave * falloff;
+// Simplex 3D Noise 
+// by Ian McEwan, Ashima Arts
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+float snoise(vec3 v){ 
+  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+// First corner
+  vec3 i  = floor(v + dot(v, C.yyy) );
+  vec3 x0 = v - i + dot(i, C.xxx) ;
+
+// Other corners
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+
+  //  x0 = x0 - 0.0 + 0.0 * C 
+  vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+  vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+  vec3 x3 = x0 - 1.0 + 3.0 * C.xxx;
+
+// Permutations
+  i = mod(i, 289.0 ); 
+  vec4 p = permute( permute( permute( 
+             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+// Gradients
+// ( N*N points uniformly over a square, mapped onto an octahedron.)
+  float n_ = 1.0/7.0; // N=7
+  vec3  ns = n_ * D.wyz - D.xzx;
+
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,N*N)
+
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+
+  vec4 b0 = vec4( x.xy, y.xy );
+  vec4 b1 = vec4( x.zw, y.zw );
+
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+  vec3 p0 = vec3(a0.xy,h.x);
+  vec3 p1 = vec3(a0.zw,h.y);
+  vec3 p2 = vec3(a1.xy,h.z);
+  vec3 p3 = vec3(a1.zw,h.w);
+
+//Normalise gradients
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+
+// Mix final noise value
+  vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  m = m * m;
+  return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+                                dot(p2,x2), dot(p3,x3) ) );
 }
 
 void main() {
-  vec2 uv = (vUv * uResolution.xy) / min(uResolution.x, uResolution.y);
-  uv -= vec2(0.5 * uResolution.x / min(uResolution.x, uResolution.y), 0.5);
+  // Normalize UVs to preserve aspect ratio
+  float aspect = uResolution.x / uResolution.y;
+  vec2 uv = vUv;
+  uv.x *= aspect;
   
-  float ripples = 0.0;
+  // Normalize Mouse
+  vec2 mouse = uMouse;
+  mouse.x *= aspect;
   
-  // Static ripples
-  for (float i = 0.0; i < 10.0; i++) {
-    if (i >= uRippleCount) break;
-    vec2 center = vec2(
-      sin(uTime * 0.3 + i * 2.0) * 0.3,
-      cos(uTime * 0.4 + i * 1.5) * 0.3
-    );
-    ripples += ripple(uv, center, uTime, uFrequency * 10.0 + i * 0.5);
-  }
+  float time = uTime * uSpeed * 0.2;
   
-  // Mouse ripple with enhanced interaction
-  if (uMouseInteraction && uMouseActiveFactor > 0.0) {
-    vec2 mouseUV = (uMouse * uResolution.xy) / min(uResolution.x, uResolution.y);
-    mouseUV -= vec2(0.5 * uResolution.x / min(uResolution.x, uResolution.y), 0.5);
-    
-    // Create multiple mouse ripples at different frequencies for rich effect
-    float mouseRipple1 = ripple(uv, mouseUV, uTime, uFrequency * 12.0) * uMouseActiveFactor * 1.5;
-    float mouseRipple2 = ripple(uv, mouseUV, uTime * 1.3, uFrequency * 8.0) * uMouseActiveFactor * 1.0;
-    
-    ripples += mouseRipple1 + mouseRipple2 * 0.5;
-  }
+  // 1. Fluid Base Layer (Domain Warping)
+  // We distort the coordinate 'q' with noise to get 'r', then use 'r' to get final noise
+  vec2 q = vec2(
+    snoise(vec3(uv * 1.5, time)),
+    snoise(vec3(uv * 1.5 + 43.0, time))
+  );
   
-  ripples *= uIntensity;
+  vec2 r = vec2(
+    snoise(vec3(uv * 2.0 + 3.0 * q, time)),
+    snoise(vec3(uv * 2.0 + 3.0 * q + 23.0, time))
+  );
   
-  // Cosmic color scheme - purple and blue only
-  float rippleIntensity = abs(ripples);
+  // Final noise value determines the "height" or "density" of the liquid
+  float f = snoise(vec3(uv * 2.0 + 4.0 * r, time));
   
-  // Create a cosmic gradient based on ripple intensity
-  vec3 purple = vec3(0.5, 0.2, 0.8);   // Deep purple
-  vec3 blue = vec3(0.2, 0.4, 1.0);     // Cosmic blue
-  vec3 lightBlue = vec3(0.4, 0.6, 1.0); // Lighter blue for variation
+  // 2. Mouse Interaction (Liquid Disturbance)
+  float mouseDist = length(uv - mouse);
+  // Soft, wide glow that pushes the liquid
+  float mouseInfluence = smoothstep(0.6, 0.0, mouseDist) * uMouseActiveFactor;
   
-  // Mix between purple and blues based on ripple intensity and time
-  float colorPhase = sin(uTime * 0.5 + rippleIntensity * 3.0) * 0.5 + 0.5;
-  vec3 color1 = mix(purple, blue, colorPhase);
-  vec3 color2 = mix(blue, lightBlue, colorPhase);
-  vec3 finalColor = mix(color1, color2, rippleIntensity);
+  // Add mouse influence to the noise field
+  f += mouseInfluence * 0.8;
   
-  float alpha = rippleIntensity * 0.8;
-  alpha = smoothstep(0.0, 1.0, alpha);
-  gl_FragColor = vec4(finalColor, alpha);
+  // 3. Coloring (Cosmic Liquid)
+  // We want a subtle, seamless look.
+  // Use the noise value 'f' to mix colors.
+  
+  // Map f (-1 to 1) to (0 to 1)
+  f = f * 0.5 + 0.5;
+  
+  // Colors
+  vec3 deepSpace = vec3(0.05, 0.05, 0.15); // Almost transparent dark
+  vec3 cosmicPurple = vec3(0.4, 0.1, 0.7);
+  vec3 electricBlue = vec3(0.1, 0.5, 0.9);
+  
+  // Mix based on noise 'height'
+  vec3 col = mix(deepSpace, cosmicPurple, smoothstep(0.2, 0.7, f));
+  col = mix(col, electricBlue, smoothstep(0.6, 1.0, f));
+  
+  // Add a "glint" or "highlight" where the liquid is highest
+  float highlight = smoothstep(0.9, 1.0, f);
+  col += vec3(1.0) * highlight * 0.15;
+  
+  // Mouse highlight (extra brightness around mouse)
+  col += vec3(0.6, 0.8, 1.0) * mouseInfluence * 0.15;
+  
+  // Final Alpha
+  // We want it to be subtle.
+  // Areas with low noise value should be very transparent.
+  float alpha = smoothstep(0.3, 0.9, f) * uIntensity;
+  
+  // Enhance alpha near mouse
+  alpha += mouseInfluence * 0.15 * uIntensity;
+  
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0));
 }
 `;
 
 interface RippleLayerProps {
   speed?: number;
   intensity?: number;
-  rippleCount?: number;
   mouseInteraction?: boolean;
   className?: string;
   zIndex?: number;
   mixBlendMode?: string;
   opacity?: number;
-  maxRipples?: number;
-  frequency?: number;
-  damping?: number;
-  maxRadius?: number;
+  [key: string]: any;
 }
 
 export default function RippleLayer({
   speed = 1.0,
-  intensity = 0.5,
-  rippleCount = 3.0,
+  intensity = 0.4, // Reduced default intensity for subtlety
   mouseInteraction = true,
   className = "",
   zIndex,
   mixBlendMode,
-  opacity = 1.0,
-  maxRipples,
-  frequency,
-  damping,
-  maxRadius,
+  opacity = 0.6, // Lower default opacity
   ...rest
 }: RippleLayerProps) {
   const ctnDom = useRef<HTMLDivElement>(null);
@@ -175,12 +248,8 @@ export default function RippleLayer({
         },
         uSpeed: { value: speed },
         uIntensity: { value: intensity },
-        uRippleCount: { value: maxRipples || rippleCount },
         uMouseInteraction: { value: mouseInteraction },
         uMouseActiveFactor: { value: 0.0 },
-        uFrequency: { value: frequency || 0.05 },
-        uDamping: { value: damping || 2.0 },
-        uMaxRadius: { value: maxRadius || 0 },
       },
     });
 
@@ -201,6 +270,9 @@ export default function RippleLayer({
         (targetMouseActive.current - smoothMouseActive.current) * lerpFactor;
 
       program.uniforms.uMouse.value[0] = smoothMousePos.current.x;
+      // Flip Y for shader coordinate system (0 at bottom) vs DOM (0 at top) if needed, 
+      // but usually for full screen effects 1-y is handled in shader or event listener.
+      // In the listener we did 1.0 - y, so here we pass as is.
       program.uniforms.uMouse.value[1] = smoothMousePos.current.y;
       program.uniforms.uMouseActiveFactor.value = smoothMouseActive.current;
 
@@ -213,6 +285,8 @@ export default function RippleLayer({
     function handleMouseMove(e: MouseEvent) {
       const rect = ctn.getBoundingClientRect();
       const x = (e.clientX - rect.left) / rect.width;
+      // In OGL/GLSL, (0,0) is bottom-left. In DOM, (0,0) is top-left.
+      // We flip Y here to match GLSL.
       const y = 1.0 - (e.clientY - rect.top) / rect.height;
       targetMousePos.current = { x, y };
       targetMouseActive.current = 1.0;
@@ -223,7 +297,6 @@ export default function RippleLayer({
     }
 
     if (mouseInteraction) {
-      // Listen on document for global mouse tracking
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseleave", handleMouseLeave);
       ctn.addEventListener("mouseleave", handleMouseLeave);
@@ -242,7 +315,7 @@ export default function RippleLayer({
       }
       gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
-  }, [speed, intensity, rippleCount, mouseInteraction, maxRipples, frequency, damping, maxRadius]);
+  }, [speed, intensity, mouseInteraction]);
 
   const containerStyle: React.CSSProperties = {
     zIndex,

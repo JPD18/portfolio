@@ -21,4 +21,10 @@ body {
   background: radial-gradient(ellipse at center, rgba(124,58,237,0.18), transparent 55%);
 }
 
-/* Removed custom DOM cursor visuals (dot/pulse); RippleLayer handles cursor effect now */
+.text-glow {
+  text-shadow: 0 0 20px rgba(167, 139, 250, 0.5), 0 0 10px rgba(167, 139, 250, 0.3);
+}
+
+.text-shadow-sm {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}

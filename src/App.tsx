@@ -8,6 +8,8 @@ import About from './components/About'
 import Projects from './components/Projects'
 import Footer from './components/Footer'
 
+import SmoothScroll from './components/ui/SmoothScroll'
+
 export default function App() {
   const [canShowBg, setCanShowBg] = useState(false)
   useEffect(() => {
@@ -20,7 +22,8 @@ export default function App() {
   }, [])
 
   return (
-    <div className="relative min-h-dvh">
+    <SmoothScroll>
+      <div className="relative min-h-dvh">
       <Suspense fallback={
         <div className="fixed inset-0 -z-10 bg-gradient-to-b from-[#05070f] via-[#0a0e1a] to-[#05070f]">
           <div
@@ -38,7 +41,7 @@ export default function App() {
         {canShowBg && <BackgroundFX />}
       </Suspense>
       {/* Subtle translucent cursor ripples between BG and content */}
-      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.05} maxRipples={3} speed={0.6} frequency={1} damping={0.8} intensity={1.5} />
+      <RippleLayer zIndex={-5} mixBlendMode="screen" opacity={0.1} speed={0.4} intensity={0.5} />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4">
         <Hero />
@@ -46,6 +49,7 @@ export default function App() {
         <Projects />
       </main>
       <Footer />
-    </div>
+      </div>
+    </SmoothScroll>
   )
 }
