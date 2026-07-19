@@ -1,149 +1,218 @@
-import { Suspense, useEffect, useMemo, useRef } from 'react'
-import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
-import { Stars } from '@react-three/drei'
-import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing'
-import * as THREE from 'three'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import type { GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
+import { Suspense, useMemo, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
+import * as THREE from "three";
 
-const planetUrls = [
-  new URL('../assets/Molten_Earth_0809000822_texture.glb', import.meta.url).href,
-  new URL('../assets/Molten_Earth_0809003511_texture.glb', import.meta.url).href,
-  new URL('../assets/Molten_Earth_0809003919_texture.glb', import.meta.url).href,
-]
+type GalaxyPoints = {
+  positions: Float32Array;
+  colors: Float32Array;
+};
 
-type PlanetProps = {
-  url: string
-  position: [number, number, number]
-  scale?: number
-  rotationSpeed?: number
+const palette = [
+  new THREE.Color("#f7d7ff"),
+  new THREE.Color("#a78bfa"),
+  new THREE.Color("#60a5fa"),
+  new THREE.Color("#fb7185"),
+  new THREE.Color("#fde68a"),
+];
+
+function createGalaxy(count: number): GalaxyPoints {
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const branches = 5;
+  const radius = 72;
+  const spin = 1.45;
+  const randomness = 0.36;
+
+  for (let i = 0; i < count; i += 1) {
+    const i3 = i * 3;
+    const distance = Math.pow(Math.random(), 0.58) * radius;
+    const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+    const spinAngle = distance * spin * 0.035;
+    const randomScale =
+      Math.pow(1 - distance / radius, 1.8) * randomness * radius;
+
+    const randomX = (Math.random() - 0.5) * randomScale;
+    const randomY = (Math.random() - 0.5) * randomScale * 0.24;
+    const randomZ = (Math.random() - 0.5) * randomScale;
+
+    positions[i3] = Math.cos(branchAngle + spinAngle) * distance + randomX;
+    positions[i3 + 1] = randomY;
+    positions[i3 + 2] =
+      Math.sin(branchAngle + spinAngle) * distance + randomZ - 46;
+
+    const mixed = palette[i % palette.length].clone();
+    mixed.lerp(
+      new THREE.Color("#ffffff"),
+      Math.max(0, 1 - distance / radius) * 0.55,
+    );
+    colors[i3] = mixed.r;
+    colors[i3 + 1] = mixed.g;
+    colors[i3 + 2] = mixed.b;
+  }
+
+  return { positions, colors };
 }
 
-function RotatingPlanet({ url, position, scale = 6, rotationSpeed = 0.08 }: PlanetProps) {
-  const gl = useThree((state) => state.gl)
-  const ktx2Loader = useMemo(() => {
-    const loader = new KTX2Loader().setTranscoderPath('https://unpkg.com/three@0.168.0/examples/jsm/libs/basis/')
-    loader.detectSupport(gl)
-    return loader
-  }, [gl])
-
-  const gltf = useLoader(GLTFLoader, url, (loader) => {
-    (loader as any).setKTX2Loader(ktx2Loader)
-  }) as unknown as GLTF
-  const ref = useRef<THREE.Group>(null)
+function SpiralGalaxy() {
+  const ref = useRef<THREE.Points>(null);
+  const galaxy = useMemo(() => createGalaxy(7000), []);
 
   useFrame((_, delta) => {
-    if (!ref.current) return
-    // Constant self-rotation regardless of scroll
-    ref.current.rotation.y += rotationSpeed * delta
-    ref.current.rotation.x += rotationSpeed * 0.35 * delta
-  })
+    if (!ref.current) return;
+    ref.current.rotation.y += delta * 0.018;
+    ref.current.rotation.z = Math.sin(Date.now() * 0.00008) * 0.025;
+  });
+
+  return (
+    <points ref={ref} rotation={[0.18, -0.32, -0.08]}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          args={[galaxy.positions, 3]}
+        />
+        <bufferAttribute attach="attributes-color" args={[galaxy.colors, 3]} />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.13}
+        vertexColors
+        transparent
+        opacity={0.82}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  );
+}
+
+function NebulaVeil() {
+  const ref = useRef<THREE.Mesh>(null);
+
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    ref.current.rotation.z = Math.sin(clock.elapsedTime * 0.08) * 0.08;
+    ref.current.rotation.y += 0.002;
+  });
+
+  return (
+    <mesh ref={ref} position={[0, -3, -58]} scale={[68, 18, 1]}>
+      <planeGeometry args={[1, 1, 1, 1]} />
+      <meshBasicMaterial
+        transparent
+        opacity={0.16}
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+        color="#7c3aed"
+      />
+    </mesh>
+  );
+}
+
+function ProceduralPlanet({
+  position,
+  scale,
+  color,
+  ring = false,
+}: {
+  position: [number, number, number];
+  scale: number;
+  color: string;
+  ring?: boolean;
+}) {
+  const ref = useRef<THREE.Group>(null);
+
+  useFrame((_, delta) => {
+    if (!ref.current) return;
+    ref.current.rotation.y += delta * 0.08;
+    ref.current.rotation.x += delta * 0.012;
+  });
 
   return (
     <group ref={ref} position={position} scale={scale}>
-      <primitive object={gltf.scene} />
+      <mesh>
+        <sphereGeometry args={[1, 40, 24]} />
+        <meshStandardMaterial
+          color={color}
+          roughness={0.72}
+          metalness={0.04}
+          emissive={color}
+          emissiveIntensity={0.12}
+        />
+      </mesh>
+      <mesh scale={1.08}>
+        <sphereGeometry args={[1, 40, 24]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={0.08}
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+      {ring && (
+        <mesh rotation={[Math.PI * 0.62, 0, Math.PI * 0.08]}>
+          <ringGeometry args={[1.32, 1.56, 96]} />
+          <meshBasicMaterial
+            color="#d8b4fe"
+            transparent
+            opacity={0.28}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
     </group>
-  )
+  );
 }
 
 export default function BackgroundFX() {
   return (
     <div className="fixed inset-0 -z-10 pointer-events-none">
       <Canvas
-        dpr={[1, 1.5]}
-        camera={{ position: [0, 0, 12], fov: 55 }}
-        gl={{ antialias: false, powerPreference: 'low-power', toneMapping: THREE.ACESFilmicToneMapping }}
-        onCreated={({ gl, scene }) => {
-          gl.toneMappingExposure = 1.2
-          scene.background = new THREE.Color('#05070f')
-          scene.fog = new THREE.Fog('#05070f', 30, 140)
+        dpr={[0.75, 1.25]}
+        frameloop="always"
+        camera={{ position: [0, 0, 16], fov: 58 }}
+        gl={{
+          antialias: false,
+          powerPreference: "low-power",
+          toneMapping: THREE.ACESFilmicToneMapping,
         }}
-        style={{ pointerEvents: 'none' }}
+        onCreated={({ gl, scene }) => {
+          gl.toneMappingExposure = 1.08;
+          scene.background = new THREE.Color("#040714");
+          scene.fog = new THREE.Fog("#040714", 42, 130);
+        }}
+        style={{ pointerEvents: "none" }}
       >
-        <ambientLight intensity={0.6} />
-        <hemisphereLight args={[0x4455aa, 0x090b1a, 0.5]} />
-        <pointLight position={[8, 6, 12]} intensity={40} color="#ffffff" />
-        
+        <ambientLight intensity={0.45} />
+        <hemisphereLight args={[0x8394ff, 0x080915, 0.55]} />
+        <pointLight position={[-10, 8, 10]} intensity={28} color="#f0abfc" />
 
         <Suspense fallback={null}>
-          <Stars radius={160} depth={80} count={2000} factor={1.2} saturation={0} fade speed={0} />
-          {/* Three planets orbiting the center with individual self-rotation */}
-          <OrbitingPlanets />
+          <SpiralGalaxy />
+          <NebulaVeil />
+          <ProceduralPlanet
+            position={[-18, -4, -34]}
+            scale={2.2}
+            color="#6d5dfc"
+            ring
+          />
+          <ProceduralPlanet
+            position={[20, 7, -52]}
+            scale={1.25}
+            color="#f97316"
+          />
         </Suspense>
 
-        <EffectComposer multisampling={0} resolutionScale={0.75}>
-          <Bloom intensity={0.4} luminanceThreshold={0.2} luminanceSmoothing={0.04} />
-          <Vignette eskil={false} offset={0.25} darkness={0.6} />
+        <EffectComposer multisampling={0} resolutionScale={0.55}>
+          <Bloom
+            intensity={0.32}
+            luminanceThreshold={0.34}
+            luminanceSmoothing={0.08}
+          />
+          <Vignette eskil={false} offset={0.18} darkness={0.72} />
         </EffectComposer>
       </Canvas>
     </div>
-  )
+  );
 }
-
-// Preloading is optional; if using KTX2-compressed textures, the configured loader above will handle them
-
-//
-
-function OrbitingPlanets() {
-  // Evenly spaced 3-planet formation, slightly closer radius
-  const radius = 28
-  const baseAngles = [0, 120, 240]
-  const largeScales = [10, 10, 10]
-  const urls = planetUrls
-
-  const groupsRef = useRef<Array<THREE.Group | null>>([])
-  const baseAngleRef = useRef(0)
-  const angularVelocityRef = useRef(0)
-
-
-  // Scroll drives additional orbital rotation with gentle inertia
-  useEffect(() => {
-    const onWheel = (e: WheelEvent) => {
-      // Positive deltaY scrolls down; adjust sensitivity (radians per second impulse)
-      angularVelocityRef.current += e.deltaY * 0.005
-    }
-    window.addEventListener('wheel', onWheel, { passive: true })
-    return () => window.removeEventListener('wheel', onWheel)
-  }, [])
-
-  useFrame((_, delta) => {
-    // Base slow orbital rotation (always happening)
-    const baseOrbitalSpeed = 0.05 // radians per second for slow continuous orbit
-    baseAngleRef.current += baseOrbitalSpeed * delta
-    
-    // Add scroll-driven velocity on top of base rotation
-    baseAngleRef.current += angularVelocityRef.current * delta
-    angularVelocityRef.current *= Math.exp(-2.5 * delta)
-    
-
-
-    for (let i = 0; i < urls.length; i += 1) {
-      const g = groupsRef.current[i]
-      if (!g) continue
-      const a = (baseAngles[i] * Math.PI) / 180 + baseAngleRef.current
-      const x = Math.cos(a) * radius
-      const z = -60 - Math.sin(a) * radius
-      const y = 0
-      g.position.set(x, y, z)
-    }
-  })
-
-  return (
-    <group>
-      {urls.map((url, i) => (
-        <group key={url} ref={(el) => (groupsRef.current[i] = el)}>
-          <RotatingPlanet 
-            url={url} 
-            position={[0, 0, 0]} 
-            scale={largeScales[i]} 
-            rotationSpeed={0.1}
-          />
-        </group>
-      ))}
-    </group>
-  )
-}
-
-
-
